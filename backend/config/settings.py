@@ -136,3 +136,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # if 0001 shows AutoField:
 # DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = "Accord <no-reply@accord.local>"
+FRONTEND_URL = "http://localhost:5173"

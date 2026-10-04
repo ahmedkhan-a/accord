@@ -5,6 +5,9 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 from functools import wraps
 
+from django.conf import settings
+from django.core.mail import send_mail
+
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
@@ -389,6 +392,18 @@ def forbid_owner(request, a):
 
 def new_token():
     return secrets.token_urlsafe(32)
+def notify(subject, body, to):
+    recipients = [x for x in to if x]
+    if not recipients:
+        return
+    try:
+        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, recipients)
+    except Exception:
+        logger.exception("Could not send email")
+
+
+def share_url(a):
+    return f"{settings.FRONTEND_URL}/agreement/share/{a.share_token}"
 
 
 @transaction.atomic
@@ -413,6 +428,13 @@ def add_signature(agreement, role, name, email, user, ip):
     else:
         move(a, wf.PARTIAL)
     a.save()
+    if current_status(a) == wf.SIGNED:
+        transaction.on_commit(lambda: notify(
+            f"Fully signed: {a.title}",
+            f"Both parties have signed \"{a.title}\" ({a.reference}).\n"
+            "You can download the PDF from Accord.\n\n- Accord",
+            [a.party_one_email, a.party_two_email],
+        ))
     return a
 
 
@@ -564,6 +586,15 @@ def agreement_send(request, agreement_id):
         a.share_token = new_token()
     a.save()
     log(a, "sent", user=request.user, to=a.party_two_email)
+        
+    notify(
+        f"{a.party_one_name or 'Someone'} sent you an agreement: {a.title}",
+        f"Hello {a.counterpart},\n\n"
+        f"{a.party_one_name or 'A user'} has sent you an agreement to review and sign:\n"
+        f"{a.title}\n\nOpen it here:\n{share_url(a)}\n\n- Accord",
+        [a.party_two_email],
+    )
+
     return json_response(agreement_to_detail(a))
 
 
@@ -690,6 +721,11 @@ def shared_reject(request, token):
     a.rejection_reason = reason
     a.save()
     log(a, "rejected", by="Counterparty", reason=reason)
+    notify(
+        f"Agreement rejected: {a.title}",
+        f"{a.counterpart} rejected your agreement.\nReason: {reason or 'No reason given'}\n\n- Accord",
+        [a.owner.email if a.owner else a.party_one_email],
+    )
     return json_response(shared_to_dict(a))
 
 
