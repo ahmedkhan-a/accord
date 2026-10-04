@@ -7,6 +7,7 @@ import Dashboard from './components/Dashboard'
 import AgreementEditor from './components/AgreementEditor'
 import AgreementDetails from './components/AgreementDetails'
 import SharedAgreement from './components/SharedAgreement'
+import ResetPassword from './components/ResetPassword'
 
 function useRoute() {
   const [path, setPath] = useState(window.location.pathname)
@@ -37,6 +38,7 @@ export default function App() {
 
   const shareMatch = path.match(/^\/agreement\/share\/([^/]+)\/?$/)
   const isShare = Boolean(shareMatch)
+  const resetMatch = path.match(/^\/reset-password\/([^/]+)\/([^/]+)\/?$/)
 
   const notify = useCallback((text, type = 'success') => {
     setToast({ text, type, id: Date.now() })
@@ -109,6 +111,15 @@ export default function App() {
       {toast.text}
     </div>
   )
+
+    if (resetMatch) {
+    return (
+      <>
+        <ResetPassword uid={resetMatch[1]} token={resetMatch[2]} navigate={navigate} notify={notify} />
+        {toastEl}
+      </>
+    )
+  }
 
   // Public counterparty page (no login needed)
   if (isShare) {

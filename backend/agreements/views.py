@@ -8,6 +8,10 @@ from functools import wraps
 from django.conf import settings
 from django.core.mail import send_mail
 
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
@@ -734,3 +738,44 @@ def shared_pdf(request, token):
     a = get_shared(token)
     log(a, "pdf_generated", user=request.user, by="Counterparty")
     return pdf_response(a)
+
+# =========================
+# PASSWORD RESET
+# =========================
+
+@api(("POST",), auth=False)
+def password_forgot(request):
+    email = str(parse_body(request).get("email", "")).strip().lower()
+    user = User.objects.filter(username__iexact=email).first()
+    if user:
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        notify(
+            "Reset your Accord password",
+            f"Hello {user.first_name},\n\nReset your password here:\n"
+            f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}\n\n"
+            "If you did not ask for this, ignore this email.\n\n- Accord",
+            [user.email],
+        )
+    # Same answer whether or not the email exists.
+    return json_response({"message": "If that email exists, a reset link has been sent."})
+
+
+@api(("POST",), auth=False)
+def password_reset(request):
+    data = parse_body(request)
+    invalid = ApiError(400, "This reset link is invalid or has expired.")
+    try:
+        user = User.objects.get(pk=urlsafe_base64_decode(str(data.get("uid", ""))).decode())
+    except (User.DoesNotExist, ValueError, TypeError, OverflowError):
+        raise invalid
+    if not default_token_generator.check_token(user, str(data.get("token", ""))):
+        raise invalid
+    password = str(data.get("password", ""))
+    try:
+        validate_password(password, user=user)
+    except ValidationError as exc:
+        raise ApiError(400, " ".join(exc.messages))
+    user.set_password(password)
+    user.save()
+    return json_response({"message": "Password updated. You can log in now."})

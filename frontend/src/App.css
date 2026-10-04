@@ -960,3 +960,5 @@ footer {
   .stats.six { grid-template-columns: 1fr; }
   .field-grid.four { grid-template-columns: 1fr; }
 }
+
+.link-row { display: block; margin: 18px auto 0; }

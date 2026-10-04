@@ -9,6 +9,8 @@ urlpatterns = [
     path("login/", views.user_login, name="login"),
     path("logout/", views.user_logout, name="logout"),
     path("me/", views.current_user, name="current_user"),
+    path("password/forgot/", views.password_forgot, name="password_forgot"),
+    path("password/reset/", views.password_reset, name="password_reset"),
     path("<int:agreement_id>/", views.agreement_detail, name="agreement_detail"),
 
     # owner actions

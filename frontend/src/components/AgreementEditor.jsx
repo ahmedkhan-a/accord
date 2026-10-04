@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { request } from '../api'
+import { TEMPLATES } from '../templates'
 
 const TYPES = [
   'Service agreement', 'Retainer agreement', 'Statement of work',
@@ -101,6 +102,24 @@ export default function AgreementEditor({ agreementId, user, navigate, notify, u
       <button type="button" className="back-link" onClick={() => navigate(back)}>← Back</button>
       <span className="eyebrow">{agreementId ? 'EDIT DRAFT' : 'NEW AGREEMENT'}</span>
       <h2>{agreementId ? 'Edit agreement' : 'Create an agreement'}</h2>
+
+            {!agreementId && (
+        <label className="field" style={{ marginTop: 16 }}>
+          <span>Start from a template (optional)</span>
+          <select
+            defaultValue=""
+            onChange={(e) => {
+              const t = TEMPLATES[e.target.value]
+              if (t) setForm((f) => ({ ...f, ...t.fields, title: f.title || t.label }))
+            }}
+          >
+            <option value="">Blank agreement</option>
+            {Object.entries(TEMPLATES).map(([key, t]) => (
+              <option key={key} value={key}>{t.label}</option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <h4 className="form-group">Basics</h4>
       <div className="field-grid">
